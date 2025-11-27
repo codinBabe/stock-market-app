@@ -1,6 +1,7 @@
 "use server";
 
 import { connectDB } from "@/database/mongoose";
+import { ObjectId } from "mongodb";
 
 export const getAllUsersForNewsEmail = async () => {
   try {
@@ -29,5 +30,27 @@ export const getAllUsersForNewsEmail = async () => {
   } catch (e) {
     console.error("Failed to get users for news email", e);
     return [];
+  }
+};
+
+export const findUserById = async (userId: string) => {
+  try {
+    if (!userId) return null;
+
+    const mongoose = await connectDB();
+    const db = mongoose.connection.db;
+    if (!db) throw new Error("Database connection not found");
+
+    return db.collection("user").findOne(
+      {
+        $or: [{ id: userId }, { _id: new ObjectId(userId) }],
+      },
+      {
+        projection: { email: 1, name: 1 },
+      }
+    );
+  } catch (e) {
+    console.error("Failed to find user by id", e);
+    return null;
   }
 };

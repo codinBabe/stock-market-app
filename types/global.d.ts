@@ -80,6 +80,15 @@ declare global {
     type: string;
   };
 
+  type StockAlertData = {
+    symbol: string;
+    name: string;
+    logo?: string | null;
+    price?: number | null;
+    changePercent?: number | null;
+    alertPrice?: number | null; // threshold you want to display
+  };
+
   type StockWithWatchlistStatus = Stock & {
     isInWatchlist: boolean;
   };
@@ -181,8 +190,10 @@ declare global {
     symbol: string;
     company: string;
     alertName: string;
-    alertType: "upper" | "lower";
+    alertType: "upper" | "lower" | "cross";
+    frequency: "1m" | "1h" | "1d";
     threshold: string;
+    lastTriggered?: Date | null;
   };
 
   type AlertModalProps = {
@@ -209,9 +220,11 @@ declare global {
     id: string;
     symbol: string;
     company: string;
+    logo?: string | null;
     alertName: string;
     currentPrice: number;
-    alertType: "upper" | "lower";
+    alertType: "upper" | "lower" | "cross";
+    frequency: "1m" | "1h" | "1d";
     threshold: number;
     changePercent?: number;
   };
