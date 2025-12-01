@@ -55,11 +55,11 @@ export const sendPriceAlertEmail = async ({
     type === "upper" ? STOCK_ALERT_UPPER_EMAIL_TEMPLATE : STOCK_ALERT_LOWER_EMAIL_TEMPLATE;
 
   const htmlTemplate = template
-    .replace("{{symbol}}", String(symbol))
-    .replace("{{company}}", String(company))
-    .replace("{{currentPrice}}", String(currentPrice))
-    .replace("{{targetPrice}}", String(targetPrice))
-    .replace("{{timestamp}}", timestamp || new Date().toLocaleString());
+    .replaceAll("{{symbol}}", String(symbol))
+    .replaceAll("{{company}}", String(company))
+    .replaceAll("{{currentPrice}}", String(currentPrice))
+    .replaceAll("{{targetPrice}}", String(targetPrice))
+    .replaceAll("{{timestamp}}", timestamp || new Date().toLocaleString());
 
   const subject =
     type === "upper"
