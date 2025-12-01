@@ -31,14 +31,6 @@ const AlertsList = ({
   const onEdit = async (a: Alert) => {
     setEditingAlert(a);
     setIsDialogOpen(true);
-    await updateAlert(a.id, {
-      symbol: a.symbol,
-      company: a.company,
-      alertName: a.alertName ?? "",
-      alertType: a.alertType,
-      frequency: a.frequency,
-      threshold: Number(a.threshold),
-    });
   };
 
   const onCloseDialog = () => {
