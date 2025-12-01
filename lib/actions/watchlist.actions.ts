@@ -153,6 +153,4 @@ export async function toggleWatchlistAction(
   } else {
     await removeFromWatchlist(symbol);
   }
-
-  revalidatePath("/watchlist");
 }
