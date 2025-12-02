@@ -213,18 +213,6 @@ export const checkAndSendPriceAlerts = inngest.createFunction(
         });
       });
 
-      // Send email
-      await step.run(`send-alert-${alert.id}`, async () => {
-        await sendPriceAlertEmail({
-          email: user.email,
-          symbol,
-          company,
-          currentPrice: price,
-          targetPrice: threshold,
-          type: alertType as "upper" | "lower",
-        });
-      });
-
       // update lastTriggered
       await step.run(`update-triggered-${alert.id}`, async () => {
         await updateAlertTriggered(alert.id, new Date());
