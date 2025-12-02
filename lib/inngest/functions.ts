@@ -230,7 +230,7 @@ export const checkAndSendPriceAlerts = inngest.createFunction(
         await updateAlertTriggered(alert.id, new Date());
       });
     }
-    }
+
     return {
       success: true,
       message: "Processed alerts successfully",
