@@ -8,16 +8,21 @@ import {
   CommandEmpty,
 } from "@/components/ui/command";
 import { Button } from "./ui/button";
-import { Loader2, Star, TrendingUp } from "lucide-react";
+import { Loader2, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { searchStocks } from "@/lib/actions/finnhub.actions";
 import { useDebounce } from "@/hooks/use-debounce";
+import {
+  addToWatchlist,
+  removeFromWatchlist,
+} from "@/lib/actions/watchlist.actions";
+import WatchlistButton from "./watchlist-button";
 
-export default function SearchCommand({
+const SearchCommand = ({
   renderAs = "button",
   label = "Add Stock",
   initialStocks,
-}: SearchCommandProps) {
+}: SearchCommandProps) => {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -122,7 +127,59 @@ export default function SearchCommand({
                         {stock.symbol} | {stock.exchange} | {stock.type}
                       </div>
                     </div>
-                    {/* <Star /> */}
+                    <div
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
+                      <WatchlistButton
+                        type="icon"
+                        symbol={stock.symbol}
+                        company={stock.name}
+                        isInWatchlist={stock.isInWatchlist}
+                        onWatchlistChange={async (symbol, next) => {
+                          // optimistic update
+                          setStocks((prev) =>
+                            (prev || []).map((s) =>
+                              s.symbol === symbol
+                                ? { ...s, isInWatchlist: next }
+                                : s
+                            )
+                          );
+
+                          try {
+                            let res;
+
+                            if (next) {
+                              res = await addToWatchlist(symbol, stock.name);
+                            } else {
+                              res = await removeFromWatchlist(symbol);
+                            }
+
+                            if (!res?.success) throw new Error("Action failed");
+
+                            // confirm optimistic update
+                            initialStocks = initialStocks.map((s) =>
+                              s.symbol === symbol
+                                ? { ...s, isInWatchlist: next }
+                                : s
+                            );
+                          } catch (err) {
+                            console.error("Failed", err);
+
+                            // revert optimistic update
+                            setStocks((prev) =>
+                              (prev || []).map((s) =>
+                                s.symbol === symbol
+                                  ? { ...s, isInWatchlist: !next }
+                                  : s
+                              )
+                            );
+                          }
+                        }}
+                      />
+                    </div>
                   </Link>
                 </li>
               ))}
@@ -132,4 +189,6 @@ export default function SearchCommand({
       </CommandDialog>
     </>
   );
-}
+};
+
+export default SearchCommand;

@@ -122,6 +122,128 @@ export const getNews = async (
   }
 };
 
+export const getQuote = async (symbol: string) => {
+  try {
+    const url = `${FINNHUB_BASE_URL}/quote?symbol=${symbol.toUpperCase()}&token=${NEXT_PUBLIC_FINNHUB_API_KEY}`;
+    const data = await fetchJSON(url, 60);
+
+    return {
+      price: data?.c ?? null,
+      change: data?.d ?? null,
+      changePercent: data?.dp ?? null,
+    };
+  } catch (err) {
+    console.error(`getQuote error for ${symbol}`, err);
+    return { price: null, change: null, changePercent: null };
+  }
+};
+
+export const getProfile = async (symbol: string) => {
+  try {
+    const url = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${symbol.toUpperCase()}&token=${NEXT_PUBLIC_FINNHUB_API_KEY}`;
+    return await fetchJSON(url, 3600);
+  } catch (err) {
+    console.error(`getProfile error for ${symbol}`, err);
+    return null;
+  }
+};
+
+export const getQuotesForSymbols = async (symbols: string[]) => {
+  return Promise.all(
+    symbols.map(async (s) => {
+      const profile = await getProfile(s);
+      const quote = await getQuote(s);
+
+      return {
+        symbol: s,
+        company: profile?.name || s,
+        logo: profile?.logo ?? null,
+        currentPrice: quote.price,
+        change: quote.change,
+        changePercent: quote.changePercent,
+        marketCap: profile?.marketCapitalization ?? null,
+        peRatio: profile?.peRatio ?? null,
+      };
+    })
+  );
+};
+
+export const getCurrentPrice = async (symbol: string) => {
+  try {
+    const quote = await getQuote(symbol);
+    return quote.price;
+  } catch (e) {
+    console.error("getCurrentPrice error for", symbol, e);
+    return null;
+  }
+};
+
+// export const searchStocks = cache(
+//   async (query?: string): Promise<StockWithWatchlistStatus[]> => {
+//     try {
+//       const cleanQuery = typeof query === "string" ? query.trim() : "";
+
+//       // Return top stocks with full details
+//       if (!cleanQuery) {
+//         const top = (POPULAR_STOCK_SYMBOLS || []).slice(0, 10);
+
+//         const data = await Promise.all(
+//           top.map(async (sym) => {
+//             try {
+//               const profile = await getProfile(sym);
+//               const quote = await getQuote(sym);
+
+//               return {
+//                 symbol: sym.toUpperCase(),
+//                 name: profile?.name || sym,
+//                 logo: profile?.logo || null,
+//                 exchange: profile?.exchange || "US",
+//                 type: "Common Stock",
+//                 marketCap: profile?.marketCapitalization || null,
+//                 pe: profile?.shareOutstanding || null,
+//                 price: quote?.price || null,
+//                 changePercent: quote?.changePercent || null,
+//                 change: quote?.change || null,
+//                 isInWatchlist: false,
+//               } as StockAlertData & StockWithWatchlistStatus;
+//             } catch (err) {
+//               console.error(`Error fetching data for ${sym}`, err);
+//               return null;
+//             }
+//           })
+//         );
+
+//         return data.filter(Boolean) as StockWithWatchlistStatus[];
+//       }
+
+//       // QUERY PROVIDED → Perform search
+
+//       const url = `${FINNHUB_BASE_URL}/search?q=${encodeURIComponent(
+//         cleanQuery
+//       )}&token=${NEXT_PUBLIC_FINNHUB_API_KEY}`;
+
+//       const res = (await fetchJSON(url, 1800)) as FinnhubSearchResponse;
+//       const results = Array.isArray(res.result) ? res.result : [];
+
+//       // Convert search results → basic stock objects
+//       return results.slice(0, 15).map((item) => {
+//         const upper = item.symbol?.toUpperCase() || "";
+
+//         return {
+//           symbol: upper,
+//           name: item.description || upper,
+//           exchange: item.displaySymbol || "US",
+//           type: item.type || "Stock",
+//           isInWatchlist: false,
+//         } as StockWithWatchlistStatus;
+//       });
+//     } catch (err) {
+//       console.error("searchStocks error", err);
+//       return [];
+//     }
+//   }
+// );
+
 export const searchStocks = cache(
   async (query?: string): Promise<StockWithWatchlistStatus[]> => {
     try {
@@ -136,10 +258,7 @@ export const searchStocks = cache(
         const profiles = await Promise.all(
           top.map(async (sym) => {
             try {
-              const url = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${encodeURIComponent(
-                sym
-              )}&token=${NEXT_PUBLIC_FINNHUB_API_KEY}`;
-              const profile = await fetchJSON(url, 3600);
+              const profile = await getProfile(sym);
               return { sym, profile } as { sym: string; profile: any };
             } catch (e) {
               console.error("Error fetching profile2 for", sym, e);

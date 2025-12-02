@@ -1,13 +1,18 @@
-import { getAllUsersForNewsEmail } from "../actions/user.actions";
-import { sendNewsSummaryEmail, sendWelcomeEmail } from "../nodemailer";
+import { findUserById, getAllUsersForNewsEmail } from "../actions/user.actions";
+import {
+  sendNewsSummaryEmail,
+  sendWelcomeEmail,
+  sendPriceAlertEmail,
+} from "../nodemailer";
 import { inngest } from "./client";
 import {
   NEWS_SUMMARY_EMAIL_PROMPT,
   PERSONALIZED_WELCOME_EMAIL_PROMPT,
 } from "./prompt";
 import { getWatchlistSymbolsByEmail } from "@/lib/actions/watchlist.actions";
-import { getNews } from "@/lib/actions/finnhub.actions";
+import { getCurrentPrice, getNews } from "@/lib/actions/finnhub.actions";
 import { getFormattedTodayDate } from "../utils";
+import { fetchAllAlerts, updateAlertTriggered } from "../actions/alert.actions";
 
 export const sendSignupEmail = inngest.createFunction(
   { id: "sign-up-email" },
@@ -144,6 +149,79 @@ export const sendDailyNewsSummary = inngest.createFunction(
     return {
       success: true,
       message: "Daily news summary emails sent successfully",
+    };
+  }
+);
+
+export const checkAndSendPriceAlerts = inngest.createFunction(
+  { id: "price-alerts" },
+  [{ event: "app/price.alerts" }, { cron: "*/1 * * * *" }],
+
+  async ({ step }) => {
+    // Fetch all alerts from DB
+    const alerts = await step.run("fetch-alerts", fetchAllAlerts);
+
+    if (!alerts || alerts.length === 0) {
+      return { success: true, message: "No alerts to process" };
+    }
+
+    // Loop through all alerts
+    for (const alert of alerts) {
+      const { id, userid, symbol, company, threshold, alertType, frequency } =
+        alert;
+
+      // Get user email
+      const user = await findUserById(userid);
+      if (!user || !user.email) continue;
+
+      // Get live price
+      const price = await getCurrentPrice(symbol);
+      if (price == null) continue;
+
+      // Cooldown logic
+      const now = Date.now();
+      const last = alert.lastTriggered
+        ? new Date(alert.lastTriggered).getTime()
+        : null;
+
+      const cooldownMs =
+        frequency === "1m"
+          ? 60_000
+          : frequency === "1h"
+          ? 3600_000
+          : 24 * 3600_000;
+
+      let canSend = !last || now - last >= cooldownMs;
+      if (!canSend) continue;
+
+      // Price condition
+      let shouldTrigger = false;
+      if (alertType === "upper" && price >= threshold) shouldTrigger = true;
+      if (alertType === "lower" && price <= threshold) shouldTrigger = true;
+
+      if (!shouldTrigger) continue;
+
+      // Send email
+      await step.run(`send-alert-${alert.id}`, async () => {
+        await sendPriceAlertEmail({
+          email: user.email,
+          symbol,
+          company,
+          currentPrice: price,
+          targetPrice: threshold,
+          type: alertType as "upper" | "lower",
+        });
+      });
+
+      // update lastTriggered
+      await step.run(`update-triggered-${alert.id}`, async () => {
+        await updateAlertTriggered(alert.id, new Date());
+      });
+    }
+
+    return {
+      success: true,
+      message: "Processed alerts successfully",
     };
   }
 );
